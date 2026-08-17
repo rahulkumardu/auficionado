@@ -1,40 +1,19 @@
 // Rahul Kumar - Auficionado Front-End
 
-// ⭐ Google Books API
-const GOOGLE_BOOKS_API = "https://www.googleapis.com/books/v1/volumes";
-
-// Category → keyword mapping
-const CATEGORY_QUERIES = {
-  all: "audiobook",
-  fiction: "fiction audiobook",
-  nonfiction: "nonfiction audiobook",
-  science: "science audiobook",
-  history: "history audiobook"
-};
-
 let currentCategory = "all";
 let currentSearchTerm = "";
-let currentPage = 0; // Google Books uses startIndex instead of pages
+let currentPage = 1;
 let favorites = [];
 
-// ⭐ Real audio samples (public domain demo clips)
-const AUDIO_SAMPLES = {
-  "Pride and Prejudice": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-  "Moby Dick": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-  "The Art of War": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-  "Frankenstein": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-  "Dracula": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"
+const CATEGORY_QUERIES = {
+  all: "",
+  fiction: "fiction",
+  nonfiction: "nonfiction",
+  science: "science",
+  history: "history"
 };
 
-// Build query
-function buildQuery() {
-  const base = CATEGORY_QUERIES[currentCategory];
-  return currentSearchTerm.trim()
-    ? `${base} ${currentSearchTerm.trim()}`
-    : base;
-}
-
-// Fetch audiobooks
+// Load local JSON dataset
 async function loadAudiobooks(append = false) {
   const loader = document.getElementById("loader");
   const container = document.getElementById("audiobook-list");
@@ -43,21 +22,31 @@ async function loadAudiobooks(append = false) {
     loader.style.display = "block";
     if (!append) container.innerHTML = "";
 
-    const query = buildQuery();
-
-    const url = `${GOOGLE_BOOKS_API}?q=${encodeURIComponent(query)}&printType=books&maxResults=20&startIndex=${currentPage}`;
-
-    const res = await fetch(url);
+    const res = await fetch("audiobooks.json");
     const data = await res.json();
 
     loader.style.display = "none";
 
-    if (!data.items) {
-      container.innerHTML = `<p style="color:red;">No audiobooks found.</p>`;
-      return;
+    let items = data.items;
+
+    // Category filter
+    const category = CATEGORY_QUERIES[currentCategory];
+    if (category) {
+      items = items.filter(item =>
+        item.description.toLowerCase().includes(category)
+      );
     }
 
-    renderAudiobooks(data.items, append);
+    // Search filter
+    if (currentSearchTerm.trim()) {
+      const term = currentSearchTerm.toLowerCase();
+      items = items.filter(item =>
+        item.title.toLowerCase().includes(term) ||
+        item.author.toLowerCase().includes(term)
+      );
+    }
+
+    renderAudiobooks(items);
 
   } catch (err) {
     loader.style.display = "none";
@@ -66,56 +55,41 @@ async function loadAudiobooks(append = false) {
 }
 
 // Render cards
-function renderAudiobooks(items, append) {
+function renderAudiobooks(items) {
   const container = document.getElementById("audiobook-list");
+  container.innerHTML = "";
 
-  items.forEach(item => {
-    const info = item.volumeInfo;
-
-    const cover =
-      info.imageLinks?.thumbnail ||
-      "https://via.placeholder.com/300x220?text=No+Cover";
-
+  items.forEach(book => {
     const card = document.createElement("div");
     card.className = "audiobook-card";
 
     card.innerHTML = `
-      <img src="${cover}" class="cover" />
-      <h3>${info.title}</h3>
-      <p><strong>Author:</strong> ${info.authors?.[0] || "Unknown"}</p>
-      <p><strong>Year:</strong> ${info.publishedDate || "N/A"}</p>
+      <img src="${book.cover}" class="cover" />
+      <h3>${book.title}</h3>
+      <p><strong>Author:</strong> ${book.author}</p>
+      <p><strong>Year:</strong> ${book.year}</p>
     `;
 
-    card.addEventListener("click", () => openModal(info, cover));
+    card.addEventListener("click", () => openModal(book));
     container.appendChild(card);
   });
 }
 
 // Modal
-function openModal(info, cover) {
+function openModal(book) {
   const modal = document.getElementById("detail-modal");
 
-  document.getElementById("modal-cover").src = cover;
-  document.getElementById("modal-title").textContent = info.title;
-  document.getElementById("modal-author").textContent =
-    `Author: ${info.authors?.[0] || "Unknown"}`;
-  document.getElementById("modal-year").textContent =
-    `Published: ${info.publishedDate || "N/A"}`;
-  document.getElementById("modal-description").textContent =
-    info.description || "No description available.";
+  document.getElementById("modal-cover").src = book.cover;
+  document.getElementById("modal-title").textContent = book.title;
+  document.getElementById("modal-author").textContent = `Author: ${book.author}`;
+  document.getElementById("modal-year").textContent = `Published: ${book.year}`;
+  document.getElementById("modal-description").textContent = book.description;
 
-  // ⭐ Set audio sample
-  const audioSrc = document.getElementById("modal-audio-src");
-  const sample =
-    AUDIO_SAMPLES[info.title] ||
-    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3";
-
-  audioSrc.src = sample;
+  document.getElementById("modal-audio-src").src = book.audio;
   document.getElementById("modal-audio").load();
 
-  // ⭐ Favorites button
   document.getElementById("favorite-btn").onclick = () =>
-    addFavorite(info, cover);
+    addFavorite(book);
 
   modal.classList.remove("hidden");
 }
@@ -125,8 +99,8 @@ document.getElementById("modal-close").onclick = () => {
 };
 
 // Favorites
-function addFavorite(info, cover) {
-  favorites.push({ ...info, cover });
+function addFavorite(book) {
+  favorites.push(book);
   renderFavorites();
 }
 
@@ -143,17 +117,11 @@ function renderFavorites() {
     item.innerHTML = `
       <img src="${fav.cover}" class="cover" />
       <h3>${fav.title}</h3>
-      <p>${fav.authors?.[0] || "Unknown"}</p>
+      <p>${fav.author}</p>
     `;
     list.appendChild(item);
   });
 }
-
-// Pagination
-document.getElementById("load-more").onclick = () => {
-  currentPage += 20;
-  loadAudiobooks(true);
-};
 
 // Tabs
 function setupCategoryTabs() {
@@ -165,7 +133,6 @@ function setupCategoryTabs() {
       tab.classList.add("active");
 
       currentCategory = tab.dataset.category;
-      currentPage = 0;
       loadAudiobooks();
     });
   });
@@ -178,14 +145,12 @@ function setupSearch() {
 
   button.addEventListener("click", () => {
     currentSearchTerm = input.value;
-    currentPage = 0;
     loadAudiobooks();
   });
 
   input.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       currentSearchTerm = input.value;
-      currentPage = 0;
       loadAudiobooks();
     }
   });
