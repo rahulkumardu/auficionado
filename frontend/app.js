@@ -2,10 +2,9 @@
 
 let currentCategory = "all";
 let currentSearchTerm = "";
-let currentPage = 1;
 let favorites = [];
 
-const CATEGORY_QUERIES = {
+const CATEGORY_KEYWORDS = {
   all: "",
   fiction: "fiction",
   nonfiction: "nonfiction",
@@ -13,14 +12,13 @@ const CATEGORY_QUERIES = {
   history: "history"
 };
 
-// Load local JSON dataset
-async function loadAudiobooks(append = false) {
+async function loadAudiobooks() {
   const loader = document.getElementById("loader");
   const container = document.getElementById("audiobook-list");
 
   try {
     loader.style.display = "block";
-    if (!append) container.innerHTML = "";
+    container.innerHTML = "";
 
     const res = await fetch("audiobooks.json");
     const data = await res.json();
@@ -29,15 +27,13 @@ async function loadAudiobooks(append = false) {
 
     let items = data.items;
 
-    // Category filter
-    const category = CATEGORY_QUERIES[currentCategory];
-    if (category) {
+    const categoryKeyword = CATEGORY_KEYWORDS[currentCategory];
+    if (categoryKeyword) {
       items = items.filter(item =>
-        item.description.toLowerCase().includes(category)
+        item.description.toLowerCase().includes(categoryKeyword)
       );
     }
 
-    // Search filter
     if (currentSearchTerm.trim()) {
       const term = currentSearchTerm.toLowerCase();
       items = items.filter(item =>
@@ -54,7 +50,6 @@ async function loadAudiobooks(append = false) {
   }
 }
 
-// Render cards
 function renderAudiobooks(items) {
   const container = document.getElementById("audiobook-list");
   container.innerHTML = "";
@@ -75,7 +70,6 @@ function renderAudiobooks(items) {
   });
 }
 
-// Modal
 function openModal(book) {
   const modal = document.getElementById("detail-modal");
 
@@ -88,8 +82,7 @@ function openModal(book) {
   document.getElementById("modal-audio-src").src = book.audio;
   document.getElementById("modal-audio").load();
 
-  document.getElementById("favorite-btn").onclick = () =>
-    addFavorite(book);
+  document.getElementById("favorite-btn").onclick = () => addFavorite(book);
 
   modal.classList.remove("hidden");
 }
@@ -98,7 +91,6 @@ document.getElementById("modal-close").onclick = () => {
   document.getElementById("detail-modal").classList.add("hidden");
 };
 
-// Favorites
 function addFavorite(book) {
   favorites.push(book);
   renderFavorites();
@@ -123,7 +115,6 @@ function renderFavorites() {
   });
 }
 
-// Tabs
 function setupCategoryTabs() {
   const tabs = document.querySelectorAll(".tab");
 
@@ -138,7 +129,6 @@ function setupCategoryTabs() {
   });
 }
 
-// Search
 function setupSearch() {
   const input = document.getElementById("search-input");
   const button = document.getElementById("search-button");
@@ -156,14 +146,12 @@ function setupSearch() {
   });
 }
 
-// Dark Mode
 document.getElementById("dark-mode-toggle").onclick = () => {
   const body = document.body;
   body.classList.toggle("dark-mode");
   body.classList.toggle("light-mode");
 };
 
-// Init
 document.addEventListener("DOMContentLoaded", () => {
   setupCategoryTabs();
   setupSearch();
